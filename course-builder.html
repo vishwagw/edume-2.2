@@ -197,10 +197,10 @@ async function init(){
 }
 
 async function loadSB(){
-  const {data:courses}=await edumeDB.sb.from('courses').select('id,title,is_published').eq('instructor_id',profile.id).order('created_at',{ascending:false});
+  const {data:courses}=await edumeDB.sb.from('courses').select('id,title,status').eq('instructor_id',profile.id).order('created_at',{ascending:false});
   const sb=document.getElementById('sb-courses');
   if(!courses?.length){sb.innerHTML='<div style="font-size:0.8rem;color:var(--ink-faint);padding:0.5rem">No courses yet.</div>';return;}
-  sb.innerHTML=courses.map(c=>`<button onclick="loadCourse('${c.id}')" style="width:100%;text-align:left;background:${course?.id===c.id?'var(--teal-pale)':'none'};border:1px solid ${course?.id===c.id?'var(--teal-light)':'var(--border)'};border-radius:9px;padding:0.6rem 0.75rem;cursor:pointer;transition:all 0.2s;margin-bottom:3px"><div style="font-size:0.8rem;font-weight:600;color:var(--ink);margin-bottom:2px">${c.title}</div><span class="badge ${c.is_published?'badge-green':'badge-amber'}">${c.is_published?'Published':'Draft'}</span></button>`).join('');
+  sb.innerHTML=courses.map(c=>`<button onclick="loadCourse('${c.id}')" style="width:100%;text-align:left;background:${course?.id===c.id?'var(--teal-pale)':'none'};border:1px solid ${course?.id===c.id?'var(--teal-light)':'var(--border)'};border-radius:9px;padding:0.6rem 0.75rem;cursor:pointer;transition:all 0.2s;margin-bottom:3px"><div style="font-size:0.8rem;font-weight:600;color:var(--ink);margin-bottom:2px">${c.title}</div><span class="badge ${c.status==='published'?'badge-green':'badge-amber'}">${c.status==='published'?'Published':'Draft'}</span></button>`).join('');
 }
 
 async function loadCourse(id){
@@ -387,22 +387,22 @@ async function saveInfo(){
 }
 
 function updatePubBar(){
-  const p=course?.is_published;
+  const p=course?.status === 'published';
   document.getElementById('pub-dot').className='sdot '+(p?'live':'draft');
   document.getElementById('pub-lbl').textContent=p?'Published — Live to students':'Draft — Not visible';
   document.getElementById('pub-btn').textContent=p?'Unpublish':'Publish Course';
 }
 async function togglePublish(){
-  if(!course)return;const n=!course.is_published;
-  const {error}=await edumeDB.sb.from('courses').update({is_published:n}).eq('id',course.id);
-  if(!error){course.is_published=n;updatePubBar();loadSB();showToast(n?'Course published! 🎉':'Course unpublished.','success');}
+  if(!course)return;const n = course.status !== 'published';
+  const {error}=await edumeDB.sb.from('courses').update({status: n ? 'published' : 'draft'}).eq('id',course.id);
+  if(!error){course.status = n ? 'published' : 'draft';updatePubBar();loadSB();showToast(n?'Course published! 🎉':'Course unpublished.','success');}
 }
 
 function openNewModal(){document.getElementById('nc-modal').classList.add('open');}
 async function createCourse(){
   const t=document.getElementById('nc-title').value.trim(),cat=document.getElementById('nc-cat').value;
   if(!t){showToast('Title required','error');return;}
-  const {data,error}=await edumeDB.sb.from('courses').insert({instructor_id:profile.id,instructor_name:profile.full_name,title:t,category:cat,price:0,is_published:false}).select().single();
+  const {data,error}=await edumeDB.sb.from('courses').insert({instructor_id:profile.id,instructor_name:profile.full_name,title:t,category:cat,price:0,status:'draft'}).select().single();
   if(error){showToast('Error: '+error.message,'error');return;}
   document.getElementById('nc-modal').classList.remove('open');
   showToast('Course created!','success');
@@ -413,3 +413,4 @@ init();
 </script>
 </body>
 </html>
+
