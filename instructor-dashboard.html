@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instructor Dashboard — Edume Learning</title>
+<link rel="stylesheet" href="/css/styles.css">
+<style>
+  .dashboard-layout { display:grid; grid-template-columns:240px 1fr; min-height:calc(100vh - 64px); }
+  .sidebar { background:white; border-right:1px solid var(--border); padding:1.5rem 1rem; position:sticky; top:64px; height:calc(100vh - 64px); overflow-y:auto; }
+  .sidebar-section { margin-bottom:2rem; }
+  .sidebar-label { font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-faint); margin-bottom:0.5rem; padding:0 0.5rem; }
+  .sidebar-link { display:flex; align-items:center; gap:10px; padding:0.6rem 0.75rem; border-radius:9px; font-size:0.875rem; font-weight:500; color:var(--ink-muted); text-decoration:none; transition:all 0.2s; cursor:pointer; border:none; background:none; width:100%; }
+  .sidebar-link:hover { background:var(--amber-pale); color:var(--amber-dark); }
+  .sidebar-link.active { background:var(--amber-pale); color:var(--amber-dark); font-weight:600; }
+  .main-content { padding:2rem; background:var(--off-white); }
+  .section-hidden { display:none; }
+  .earnings-strip { background:linear-gradient(135deg,var(--teal-dark),var(--teal)); border-radius:16px; padding:1.5rem 2rem; color:white; margin-bottom:1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; }
+  .earnings-strip h2 { font-family:'Playfair Display',serif; font-size:1.2rem; margin-bottom:0.2rem; }
+  .earnings-amount { font-family:'Playfair Display',serif; font-size:2.2rem; font-weight:700; color:var(--amber); }
+  .course-row { background:white; border:1px solid var(--border); border-radius:12px; padding:1rem 1.25rem; display:flex; gap:1rem; align-items:center; flex-wrap:wrap; }
+  .course-emoji { width:52px; height:52px; border-radius:10px; background:var(--teal-pale); display:flex; align-items:center; justify-content:center; font-size:1.5rem; flex-shrink:0; }
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center; padding:1rem; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:white; border-radius:20px; padding:2rem; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; }
+  .modal h3 { font-family:'Playfair Display',serif; font-size:1.25rem; font-weight:700; margin-bottom:1.25rem; }
+  .tab-row { display:flex; gap:0.5rem; margin-bottom:1.5rem; background:white; border:1px solid var(--border); border-radius:10px; padding:4px; width:fit-content; }
+  .tab-btn { padding:0.45rem 1rem; border-radius:7px; border:none; background:transparent; font-family:'DM Sans'; font-size:0.8rem; font-weight:500; color:var(--ink-muted); cursor:pointer; transition:all 0.2s; }
+  .tab-btn.active { background:var(--amber); color:var(--ink); font-weight:700; }
+  @media(max-width:768px) { .dashboard-layout{grid-template-columns:1fr} .sidebar{display:none} }
+</style>
+</head>
+<body>
+
+<nav class="app-nav" id="app-nav"></nav>
+
+<div class="dashboard-layout">
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Studio</div>
+      <button class="sidebar-link active" onclick="showSection('overview')">📊 Overview</button>
+      <button class="sidebar-link" onclick="showSection('courses')">📚 My Courses</button>
+      <button class="sidebar-link" onclick="showSection('live')">🎥 Live Classes</button>
+      <button class="sidebar-link" onclick="showSection('students')">👥 My Students</button>
+      <button class="sidebar-link" onclick="showSection('earnings')">💰 Earnings</button>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Account</div>
+      <button class="sidebar-link" onclick="showSection('settings')">⚙️ Settings</button>
+      <button class="sidebar-link" onclick="signOut()" style="color:var(--red)">← Sign Out</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+
+    <!-- OVERVIEW -->
+    <div id="section-overview">
+      <div class="earnings-strip">
+        <div>
+          <h2 id="welcome-name">Instructor Dashboard</h2>
+          <p style="font-size:0.82rem;opacity:0.7">Here's your performance this month</p>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:0.78rem;opacity:0.7;margin-bottom:2px">This Month</div>
+          <div class="earnings-amount" id="monthly-earnings">LKR —</div>
+        </div>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:1.5rem">
+        <div class="stat-card"><div class="s-icon">📚</div><div class="s-label">Total Courses</div><div class="s-val" id="stat-courses">—</div></div>
+        <div class="stat-card"><div class="s-icon">👥</div><div class="s-label">Total Students</div><div class="s-val" id="stat-students">—</div></div>
+        <div class="stat-card"><div class="s-icon">🎥</div><div class="s-label">Live Classes</div><div class="s-val" id="stat-live">—</div></div>
+        <div class="stat-card"><div class="s-icon">⭐</div><div class="s-label">Avg. Rating</div><div class="s-val" id="stat-rating">—</div></div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <h3 style="font-size:1rem;font-weight:600">Recent Courses</h3>
+        <button class="btn btn-amber" onclick="openCourseModal()">+ Create Course</button>
+      </div>
+      <div id="overview-courses" style="display:flex;flex-direction:column;gap:0.75rem"><div class="spinner"></div></div>
+    </div>
+
+    <!-- COURSES -->
+    <div id="section-courses" class="section-hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700">My Courses</h2>
+        <button class="btn btn-amber" onclick="openCourseModal()">+ Create New Course</button>
+      </div>
+      <div id="courses-list" style="display:flex;flex-direction:column;gap:0.75rem"><div class="spinner"></div></div>
+    </div>
+
+    <!-- LIVE CLASSES -->
+    <div id="section-live" class="section-hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700">Live Classes</h2>
+        <button class="btn btn-amber" onclick="openLiveModal()">+ Schedule Live Class</button>
+      </div>
+      <div id="live-list" style="display:flex;flex-direction:column;gap:0.75rem"><div class="spinner"></div></div>
+    </div>
+
+    <!-- STUDENTS -->
+    <div id="section-students" class="section-hidden">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;margin-bottom:1.5rem">My Students</h2>
+      <div id="students-list"><div class="spinner"></div></div>
+    </div>
+
+    <!-- EARNINGS -->
+    <div id="section-earnings" class="section-hidden">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;margin-bottom:1.5rem">Earnings</h2>
+      <div class="grid-2" style="margin-bottom:1.5rem">
+        <div class="card">
+          <div style="font-size:0.75rem;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">Course Sales Revenue (70%)</div>
+          <div style="font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:var(--teal)" id="earn-courses">LKR —</div>
+        </div>
+        <div class="card">
+          <div style="font-size:0.75rem;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.3rem">Live Ticket Revenue (80%)</div>
+          <div style="font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;color:var(--amber-dark)" id="earn-tickets">LKR —</div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="font-weight:600;margin-bottom:1rem">Recent Payouts</div>
+        <div id="payouts-list"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="section-settings" class="section-hidden">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;margin-bottom:1.5rem">Instructor Profile</h2>
+      <div class="card" style="max-width:560px">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input type="text" id="s-name" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bio / About You</label>
+          <textarea id="s-bio" class="form-textarea" placeholder="Tell students about your experience and expertise..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bank Account (for payouts)</label>
+          <input type="text" id="s-bank" class="form-input" placeholder="Bank name — Account number">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone</label>
+          <input type="tel" id="s-phone" class="form-input" placeholder="+94 77 000 0000">
+        </div>
+        <button class="btn btn-primary" onclick="saveInstructorSettings()">Save Profile</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- CREATE COURSE MODAL -->
+<div class="modal-overlay" id="course-modal">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+      <h3 style="margin:0">Create New Course</h3>
+      <button onclick="closeModal('course-modal')" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--ink-faint)">×</button>
+    </div>
+    <div id="course-modal-error" style="display:none;background:var(--coral-pale);color:var(--coral);font-size:0.82rem;padding:10px 12px;border-radius:8px;margin-bottom:1rem"></div>
+    <div class="form-group"><label class="form-label">Course Title *</label><input type="text" id="c-title" class="form-input" placeholder="e.g. Complete Python in Sinhala"></div>
+    <div class="form-group"><label class="form-label">Description *</label><textarea id="c-desc" class="form-textarea" placeholder="What will students learn?"></textarea></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select id="c-category" class="form-select">
+          <option>IT & Programming</option><option>Mathematics</option><option>Science</option>
+          <option>Business & Finance</option><option>Languages</option><option>Design & Creative</option>
+          <option>Digital Marketing</option><option>Healthcare</option><option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Language</label>
+        <select id="c-lang" class="form-select">
+          <option value="si">සිංහල (Sinhala)</option>
+          <option value="ta">தமிழ் (Tamil)</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+      <div class="form-group"><label class="form-label">Price (LKR) *</label><input type="number" id="c-price" class="form-input" placeholder="3900" min="0"></div>
+      <div class="form-group"><label class="form-label">Thumbnail Emoji</label><input type="text" id="c-emoji" class="form-input" placeholder="💻" maxlength="2" value="📚"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Course Thumbnail Image (optional)</label>
+      <input type="file" id="c-thumbnail" class="form-input" accept="image/*" style="padding:0.4rem">
+    </div>
+    <div style="display:flex;gap:0.75rem">
+      <button class="btn btn-secondary btn-full" onclick="closeModal('course-modal')">Cancel</button>
+      <button class="btn btn-amber btn-full" id="create-course-btn" onclick="createCourse()">Create Course</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE LIVE CLASS MODAL -->
+<div class="modal-overlay" id="live-modal">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
+      <h3 style="margin:0">Schedule Live Class</h3>
+      <button onclick="closeModal('live-modal')" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:var(--ink-faint)">×</button>
+    </div>
+    <div id="live-modal-error" style="display:none;background:var(--coral-pale);color:var(--coral);font-size:0.82rem;padding:10px 12px;border-radius:8px;margin-bottom:1rem"></div>
+    <div class="form-group"><label class="form-label">Class Title *</label><input type="text" id="l-title" class="form-input" placeholder="e.g. A/L Combined Maths — Live Revision"></div>
+    <div class="form-group"><label class="form-label">Description</label><textarea id="l-desc" class="form-textarea" placeholder="What will be covered?"></textarea></div>
+    <div class="form-group">
+      <label class="form-label">Platform *</label>
+      <select id="l-platform" class="form-select" onchange="togglePlatformLink()">
+        <option value="zoom">Zoom</option>
+        <option value="teams">Microsoft Teams</option>
+      </select>
+    </div>
+    <div class="form-group" id="zoom-link-group"><label class="form-label">Zoom Meeting Link *</label><input type="url" id="l-zoom" class="form-input" placeholder="https://zoom.us/j/..."></div>
+    <div class="form-group" id="teams-link-group" style="display:none"><label class="form-label">MS Teams Link *</label><input type="url" id="l-teams" class="form-input" placeholder="https://teams.microsoft.com/l/..."></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+      <div class="form-group"><label class="form-label">Schedule (e.g. Sat & Sun 9 AM)</label><input type="text" id="l-schedule" class="form-input" placeholder="Every Sat 10 AM"></div>
+      <div class="form-group"><label class="form-label">Monthly Ticket Price (LKR) *</label><input type="number" id="l-price" class="form-input" placeholder="1500" min="0"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Max Students per Session</label><input type="number" id="l-max" class="form-input" placeholder="100" min="1"></div>
+    <div style="display:flex;gap:0.75rem">
+      <button class="btn btn-secondary btn-full" onclick="closeModal('live-modal')">Cancel</button>
+      <button class="btn btn-amber btn-full" id="create-live-btn" onclick="createLiveClass()">Schedule Class</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/js/supabase-client.js"></script>
+<script src="/js/ui.js"></script>
+<script>
+  edumeDB.requireAuth('/login.html');
+  let currentProfile = null;
+
+  async function init() {
+    currentProfile = await edumeDB.getCurrentProfile();
+    if (!currentProfile) return;
+    if (currentProfile.role !== 'instructor') {
+      window.location.href = '/student-dashboard.html'; return;
+    }
+    renderNav('instructor');
+    const name = (currentProfile.full_name || 'Instructor').split(' ')[0];
+    document.getElementById('welcome-name').textContent = `Welcome, ${name}! 👋`;
+    document.getElementById('s-name').value = currentProfile.full_name || '';
+    document.getElementById('s-bio').value = currentProfile.bio || '';
+    document.getElementById('s-bank').value = currentProfile.bank_account || '';
+    document.getElementById('s-phone').value = currentProfile.phone || '';
+    loadOverview();
+  }
+
+  async function loadOverview() {
+    const id = currentProfile.id;
+
+    const [{ count: courseCount }, { count: liveCount }] = await Promise.all([
+      edumeDB.sb.from('courses').select('*', {count:'exact',head:true}).eq('instructor_id', id),
+      edumeDB.sb.from('live_classes').select('*', {count:'exact',head:true}).eq('instructor_id', id),
+    ]);
+    const { data: enrollData } = await edumeDB.sb
+      .from('enrollments').select('courses!inner(instructor_id)')
+      .eq('courses.instructor_id', id);
+    const studentCount = enrollData?.length || 0;
+
+    document.getElementById('stat-courses').textContent  = courseCount ?? 0;
+    document.getElementById('stat-students').textContent = studentCount;
+    document.getElementById('stat-live').textContent     = liveCount ?? 0;
+    document.getElementById('stat-rating').textContent   = '4.8 ★';
+
+    // Earnings (mock for demo — replace with your real payments table)
+    document.getElementById('monthly-earnings').textContent = 'LKR 82,400';
+    document.getElementById('earn-courses').textContent  = 'LKR 54,200';
+    document.getElementById('earn-tickets').textContent  = 'LKR 28,200';
+
+    loadCoursesList('overview-courses', 3);
+  }
+
+  async function loadCoursesList(containerId = 'courses-list', limit = 50) {
+    const { data: courses } = await edumeDB.sb
+      .from('courses').select('*')
+      .eq('instructor_id', currentProfile.id)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    const container = document.getElementById(containerId);
+    if (!courses?.length) {
+      container.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--ink-faint)">No courses yet. <button class="btn btn-amber" style="margin-left:8px" onclick="openCourseModal()">Create your first course →</button></div>`;
+      return;
+    }
+    container.innerHTML = courses.map(c => `
+      <div class="course-row">
+        <div class="course-emoji">${c.thumbnail_emoji || '📚'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:0.9rem;font-weight:600;margin-bottom:2px">${c.title}</div>
+          <div style="font-size:0.75rem;color:var(--ink-faint)">${c.category} · ${c.language === 'si' ? 'සිංහල' : c.language === 'ta' ? 'தமிழ்' : 'English'}</div>
+        </div>
+        <span class="badge ${c.is_published ? 'badge-green' : 'badge-amber'}">${c.is_published ? 'Published' : 'Draft'}</span>
+        <span style="font-weight:700;color:var(--teal);font-size:0.9rem">${formatLKR(c.price)}</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary" style="padding:0.35rem 0.75rem;font-size:0.75rem" onclick="togglePublish('${c.id}', ${c.is_published})">${c.is_published ? 'Unpublish' : 'Publish'}</button>
+          <button class="btn btn-danger" style="padding:0.35rem 0.75rem;font-size:0.75rem" onclick="deleteCourse('${c.id}')">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function loadLiveList() {
+    const { data: classes } = await edumeDB.sb
+      .from('live_classes').select('*')
+      .eq('instructor_id', currentProfile.id)
+      .order('created_at', { ascending: false });
+
+    const container = document.getElementById('live-list');
+    if (!classes?.length) {
+      container.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--ink-faint)">No live classes yet. <button class="btn btn-amber" style="margin-left:8px" onclick="openLiveModal()">Schedule one →</button></div>`;
+      return;
+    }
+    container.innerHTML = classes.map(c => `
+      <div class="course-row">
+        <div class="course-emoji">${c.platform === 'zoom' ? '📹' : '💻'}</div>
+        <div style="flex:1">
+          <div style="font-size:0.9rem;font-weight:600;margin-bottom:2px">${c.title}</div>
+          <div style="font-size:0.75rem;color:var(--ink-faint)">${c.schedule} · ${c.platform === 'zoom' ? 'Zoom' : 'MS Teams'}</div>
+        </div>
+        <span style="font-weight:700;color:var(--amber-dark);font-size:0.9rem">${formatLKR(c.ticket_price)}/mo</span>
+        <div style="display:flex;gap:6px">
+          <a href="${c.zoom_link || c.teams_link || '#'}" target="_blank" class="btn btn-primary" style="padding:0.35rem 0.75rem;font-size:0.75rem">Open Link</a>
+          <button class="btn btn-danger" style="padding:0.35rem 0.75rem;font-size:0.75rem" onclick="deleteLiveClass('${c.id}')">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function loadStudentsList() {
+    const { data } = await edumeDB.sb
+      .from('enrollments')
+      .select('profiles(full_name, email), courses(title), created_at')
+      .eq('courses.instructor_id', currentProfile.id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    const container = document.getElementById('students-list');
+    if (!data?.length) {
+      container.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--ink-faint)">No students yet.</div>`;
+      return;
+    }
+    container.innerHTML = `
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:0.85rem">
+          <thead><tr style="border-bottom:2px solid var(--border);text-align:left">
+            <th style="padding:0.75rem;font-weight:600;color:var(--ink-muted)">Student</th>
+            <th style="padding:0.75rem;font-weight:600;color:var(--ink-muted)">Course</th>
+            <th style="padding:0.75rem;font-weight:600;color:var(--ink-muted)">Enrolled</th>
+          </tr></thead>
+          <tbody>${data.map(r => `
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:0.75rem">
+                <div style="font-weight:500">${r.profiles?.full_name || '—'}</div>
+                <div style="font-size:0.72rem;color:var(--ink-faint)">${r.profiles?.email || ''}</div>
+              </td>
+              <td style="padding:0.75rem;color:var(--ink-muted)">${r.courses?.title || '—'}</td>
+              <td style="padding:0.75rem;color:var(--ink-faint)">${formatDate(r.created_at)}</td>
+            </tr>
+          `).join('')}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  async function loadPayouts() {
+    document.getElementById('payouts-list').innerHTML = `
+      <div style="color:var(--ink-muted);font-size:0.85rem;padding:1rem;text-align:center">
+        Payout history will appear here once your first payment is processed.<br>
+        <span style="color:var(--ink-faint);font-size:0.78rem">Payouts are processed on the 1st of each month to your registered bank account.</span>
+      </div>`;
+  }
+
+  // ---- COURSE ACTIONS ----
+  function openCourseModal() { document.getElementById('course-modal').classList.add('open'); }
+  function openLiveModal()   { document.getElementById('live-modal').classList.add('open'); }
+  function closeModal(id)    { document.getElementById(id).classList.remove('open'); }
+
+  async function createCourse() {
+    const title    = document.getElementById('c-title').value.trim();
+    const desc     = document.getElementById('c-desc').value.trim();
+    const category = document.getElementById('c-category').value;
+    const lang     = document.getElementById('c-lang').value;
+    const price    = parseFloat(document.getElementById('c-price').value);
+    const emoji    = document.getElementById('c-emoji').value || '📚';
+    const thumbFile= document.getElementById('c-thumbnail').files[0];
+    const btn      = document.getElementById('create-course-btn');
+    const errEl    = document.getElementById('course-modal-error');
+    errEl.style.display = 'none';
+
+    if (!title || !desc || isNaN(price)) {
+      errEl.textContent = 'Please fill in all required fields.';
+      errEl.style.display = 'block'; return;
+    }
+
+    setLoading(btn, true, 'Create Course');
+    let thumbnailUrl = null;
+    if (thumbFile) {
+      try {
+        thumbnailUrl = await edumeDB.uploadFile('course-thumbnails', `${currentProfile.id}/${Date.now()}-${thumbFile.name}`, thumbFile);
+      } catch(e) { /* non-blocking */ }
+    }
+
+    const { error } = await edumeDB.sb.from('courses').insert({
+      instructor_id: currentProfile.id,
+      instructor_name: currentProfile.full_name,
+      title, description: desc, category, language: lang,
+      price, thumbnail_emoji: emoji, thumbnail_url: thumbnailUrl,
+      is_published: false,
+    });
+
+    setLoading(btn, false, 'Create Course');
+    if (error) {
+      errEl.textContent = error.message; errEl.style.display = 'block';
+    } else {
+      closeModal('course-modal');
+      showToast('Course created! Add content in the course editor.', 'success');
+      loadCoursesList('overview-courses', 3);
+      if (!document.getElementById('section-courses').classList.contains('section-hidden')) loadCoursesList();
+    }
+  }
+
+  async function togglePublish(courseId, isPublished) {
+    const { error } = await edumeDB.sb.from('courses').update({ is_published: !isPublished }).eq('id', courseId);
+    if (!error) { showToast(isPublished ? 'Course unpublished.' : 'Course published!', 'success'); loadCoursesList(); loadCoursesList('overview-courses', 3); }
+  }
+
+  async function deleteCourse(courseId) {
+    if (!confirm('Delete this course? This cannot be undone.')) return;
+    const { error } = await edumeDB.sb.from('courses').delete().eq('id', courseId);
+    if (!error) { showToast('Course deleted.', 'success'); loadCoursesList(); loadCoursesList('overview-courses', 3); }
+  }
+
+  // ---- LIVE CLASS ACTIONS ----
+  function togglePlatformLink() {
+    const platform = document.getElementById('l-platform').value;
+    document.getElementById('zoom-link-group').style.display  = platform === 'zoom'  ? 'block' : 'none';
+    document.getElementById('teams-link-group').style.display = platform === 'teams' ? 'block' : 'none';
+  }
+
+  async function createLiveClass() {
+    const title    = document.getElementById('l-title').value.trim();
+    const desc     = document.getElementById('l-desc').value.trim();
+    const platform = document.getElementById('l-platform').value;
+    const zoomLink = document.getElementById('l-zoom').value.trim();
+    const teamsLink= document.getElementById('l-teams').value.trim();
+    const schedule = document.getElementById('l-schedule').value.trim();
+    const price    = parseFloat(document.getElementById('l-price').value);
+    const maxStudents = parseInt(document.getElementById('l-max').value) || 100;
+    const btn      = document.getElementById('create-live-btn');
+    const errEl    = document.getElementById('live-modal-error');
+    errEl.style.display = 'none';
+
+    if (!title || isNaN(price) || (platform === 'zoom' && !zoomLink) || (platform === 'teams' && !teamsLink)) {
+      errEl.textContent = 'Please fill in all required fields.'; errEl.style.display = 'block'; return;
+    }
+
+    setLoading(btn, true, 'Schedule Class');
+    const { error } = await edumeDB.sb.from('live_classes').insert({
+      instructor_id: currentProfile.id,
+      instructor_name: currentProfile.full_name,
+      title, description: desc, platform,
+      zoom_link: platform === 'zoom' ? zoomLink : null,
+      teams_link: platform === 'teams' ? teamsLink : null,
+      schedule, ticket_price: price, max_students: maxStudents,
+      is_active: true,
+    });
+
+    setLoading(btn, false, 'Schedule Class');
+    if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; }
+    else {
+      closeModal('live-modal');
+      showToast('Live class scheduled!', 'success');
+      loadLiveList();
+    }
+  }
+
+  async function deleteLiveClass(id) {
+    if (!confirm('Delete this live class?')) return;
+    const { error } = await edumeDB.sb.from('live_classes').delete().eq('id', id);
+    if (!error) { showToast('Live class deleted.', 'success'); loadLiveList(); }
+  }
+
+  async function saveInstructorSettings() {
+    const { error } = await edumeDB.sb.from('profiles').update({
+      full_name:    document.getElementById('s-name').value,
+      bio:          document.getElementById('s-bio').value,
+      bank_account: document.getElementById('s-bank').value,
+      phone:        document.getElementById('s-phone').value,
+    }).eq('id', currentProfile.id);
+    if (error) showToast('Error: ' + error.message, 'error');
+    else showToast('Profile saved!', 'success');
+  }
+
+  const sectionLoaders = {
+    courses:  () => loadCoursesList('courses-list'),
+    live:     loadLiveList,
+    students: loadStudentsList,
+    earnings: loadPayouts,
+  };
+  const loadedSections = new Set(['overview']);
+
+  function showSection(name) {
+    document.querySelectorAll('[id^="section-"]').forEach(el => el.classList.add('section-hidden'));
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    document.getElementById(`section-${name}`)?.classList.remove('section-hidden');
+    event.currentTarget.classList.add('active');
+    if (!loadedSections.has(name) && sectionLoaders[name]) {
+      loadedSections.add(name);
+      sectionLoaders[name]();
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

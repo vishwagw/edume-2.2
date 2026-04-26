@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Dashboard — Edume Learning</title>
+<link rel="stylesheet" href="/css/styles.css">
+<style>
+  .dashboard-layout { display:grid; grid-template-columns:240px 1fr; min-height:calc(100vh - 64px); }
+  .sidebar { background:white; border-right:1px solid var(--border); padding:1.5rem 1rem; position:sticky; top:64px; height:calc(100vh - 64px); overflow-y:auto; }
+  .sidebar-section { margin-bottom:2rem; }
+  .sidebar-label { font-size:0.68rem; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-faint); margin-bottom:0.5rem; padding:0 0.5rem; }
+  .sidebar-link { display:flex; align-items:center; gap:10px; padding:0.6rem 0.75rem; border-radius:9px; font-size:0.875rem; font-weight:500; color:var(--ink-muted); text-decoration:none; transition:all 0.2s; cursor:pointer; border:none; background:none; width:100%; }
+  .sidebar-link:hover { background:var(--teal-pale); color:var(--teal); }
+  .sidebar-link.active { background:var(--teal-pale); color:var(--teal); font-weight:600; }
+  .main-content { padding:2rem; background:var(--off-white); }
+  .section-hidden { display:none; }
+  .welcome-strip { background:linear-gradient(135deg,var(--teal-dark),var(--teal)); border-radius:16px; padding:1.5rem 2rem; color:white; margin-bottom:1.5rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; }
+  .welcome-strip h2 { font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:700; margin-bottom:0.25rem; }
+  .welcome-strip p { font-size:0.85rem; opacity:0.75; }
+  .course-progress-card { background:white; border:1px solid var(--border); border-radius:14px; padding:1rem; display:flex; gap:1rem; align-items:center; }
+  .course-thumb-sm { width:72px; height:52px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; flex-shrink:0; }
+  .progress-bar-track { height:4px; background:var(--teal-pale); border-radius:2px; margin-top:6px; }
+  .progress-bar-fill { height:100%; background:var(--teal-mid); border-radius:2px; }
+  .live-class-row { background:white; border:1px solid var(--border); border-radius:12px; padding:1rem 1.25rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap; justify-content:space-between; }
+  .live-dot { display:inline-flex; align-items:center; gap:5px; font-size:0.72rem; font-weight:700; color:#FF4444; }
+  .live-dot::before { content:''; width:7px; height:7px; border-radius:50%; background:#FF4444; animation:pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+  .empty-state { text-align:center; padding:3rem; color:var(--ink-faint); }
+  .empty-state .es-icon { font-size:3rem; margin-bottom:1rem; }
+  .empty-state h3 { font-size:1rem; font-weight:600; color:var(--ink-muted); margin-bottom:0.5rem; }
+  .empty-state p { font-size:0.85rem; }
+  @media(max-width:768px) { .dashboard-layout{grid-template-columns:1fr} .sidebar{display:none} }
+</style>
+</head>
+<body>
+
+<nav class="app-nav" id="app-nav"></nav>
+
+<div class="dashboard-layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Learning</div>
+      <button class="sidebar-link active" onclick="showSection('overview')">📊 Overview</button>
+      <button class="sidebar-link" onclick="showSection('my-courses')">📚 My Courses</button>
+      <button class="sidebar-link" onclick="showSection('live-classes')">🎥 Live Classes</button>
+      <button class="sidebar-link" onclick="showSection('certificates')">🎓 Certificates</button>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Account</div>
+      <a href="/index.html#courses" class="sidebar-link">🔍 Browse Courses</a>
+      <a href="/live-classes.html" class="sidebar-link">🎟️ Buy Tickets</a>
+      <button class="sidebar-link" onclick="showSection('settings')">⚙️ Settings</button>
+      <button class="sidebar-link" onclick="signOut()" style="color:var(--red)">← Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <!-- OVERVIEW -->
+    <div id="section-overview">
+      <div class="welcome-strip">
+        <div>
+          <h2 id="welcome-name">Welcome back! 👋</h2>
+          <p>Continue where you left off.</p>
+        </div>
+        <a href="/index.html#courses" class="btn btn-amber">Browse More Courses</a>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:1.5rem">
+        <div class="stat-card">
+          <div class="s-icon">📚</div>
+          <div class="s-label">Enrolled Courses</div>
+          <div class="s-val" id="stat-enrolled">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="s-icon">✅</div>
+          <div class="s-label">Completed</div>
+          <div class="s-val" id="stat-completed">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="s-icon">🎥</div>
+          <div class="s-label">Live Tickets</div>
+          <div class="s-val" id="stat-tickets">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="s-icon">🎓</div>
+          <div class="s-label">Certificates</div>
+          <div class="s-val" id="stat-certs">—</div>
+        </div>
+      </div>
+
+      <h3 style="font-size:1rem;font-weight:600;margin-bottom:1rem">Continue Learning</h3>
+      <div id="continue-learning" style="display:flex;flex-direction:column;gap:0.75rem">
+        <div class="spinner"></div>
+      </div>
+    </div>
+
+    <!-- MY COURSES -->
+    <div id="section-my-courses" class="section-hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700">My Courses</h2>
+        <a href="/index.html#courses" class="btn btn-primary">+ Enroll in New Course</a>
+      </div>
+      <div id="my-courses-list" class="grid-3"><div class="spinner"></div></div>
+    </div>
+
+    <!-- LIVE CLASSES -->
+    <div id="section-live-classes" class="section-hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+        <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700">My Live Classes</h2>
+        <a href="/live-classes.html" class="btn btn-primary">🎟️ Browse Live Classes</a>
+      </div>
+      <div id="live-classes-list" style="display:flex;flex-direction:column;gap:0.75rem"><div class="spinner"></div></div>
+    </div>
+
+    <!-- CERTIFICATES -->
+    <div id="section-certificates" class="section-hidden">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;margin-bottom:1.5rem">My Certificates</h2>
+      <div id="certs-list" class="grid-3"><div class="spinner"></div></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="section-settings" class="section-hidden">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;margin-bottom:1.5rem">Account Settings</h2>
+      <div class="card" style="max-width:560px">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input type="text" id="settings-name" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="settings-email" class="form-input" disabled style="background:var(--off-white)">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phone Number</label>
+          <input type="tel" id="settings-phone" class="form-input" placeholder="+94 77 000 0000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Preferred Language</label>
+          <select id="settings-lang" class="form-select">
+            <option value="en">English</option>
+            <option value="si">සිංහල</option>
+            <option value="ta">தமிழ்</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/js/supabase-client.js"></script>
+<script src="/js/ui.js"></script>
+<script>
+  edumeDB.requireAuth('/login.html');
+
+  let currentProfile = null;
+
+  async function init() {
+    currentProfile = await edumeDB.getCurrentProfile();
+    if (!currentProfile) return;
+
+    // Render nav
+    renderNav('dashboard');
+
+    // Welcome
+    const firstName = (currentProfile.full_name || 'there').split(' ')[0];
+    document.getElementById('welcome-name').textContent = `Welcome back, ${firstName}! 👋`;
+
+    // Load stats
+    loadStats();
+    loadContinueLearning();
+
+    // Settings prefill
+    document.getElementById('settings-name').value = currentProfile.full_name || '';
+    document.getElementById('settings-email').value = currentProfile.email || '';
+    document.getElementById('settings-phone').value = currentProfile.phone || '';
+    document.getElementById('settings-lang').value = currentProfile.preferred_lang || 'en';
+  }
+
+  async function loadStats() {
+    const { count: enrolled } = await edumeDB.sb
+      .from('enrollments').select('*', { count: 'exact', head: true })
+      .eq('user_id', currentProfile.id);
+    const { count: completed } = await edumeDB.sb
+      .from('enrollments').select('*', { count: 'exact', head: true })
+      .eq('user_id', currentProfile.id).eq('status', 'completed');
+    const { count: tickets } = await edumeDB.sb
+      .from('live_class_tickets').select('*', { count: 'exact', head: true })
+      .eq('user_id', currentProfile.id).eq('status', 'active');
+
+    document.getElementById('stat-enrolled').textContent = enrolled ?? 0;
+    document.getElementById('stat-completed').textContent = completed ?? 0;
+    document.getElementById('stat-tickets').textContent = tickets ?? 0;
+    document.getElementById('stat-certs').textContent = completed ?? 0;
+  }
+
+  async function loadContinueLearning() {
+    const { data: enrollments } = await edumeDB.sb
+      .from('enrollments')
+      .select('*, courses(id, title, category, thumbnail_emoji, price)')
+      .eq('user_id', currentProfile.id)
+      .order('updated_at', { ascending: false })
+      .limit(4);
+
+    const container = document.getElementById('continue-learning');
+    if (!enrollments?.length) {
+      container.innerHTML = `<div class="empty-state"><div class="es-icon">📚</div><h3>No courses yet</h3><p>Browse our catalog and enroll in your first course!</p><a href="/index.html#courses" class="btn btn-primary" style="margin-top:1rem">Browse Courses</a></div>`;
+      return;
+    }
+    container.innerHTML = enrollments.map(e => `
+      <div class="course-progress-card">
+        <div class="course-thumb-sm" style="background:var(--teal-pale)">${e.courses?.thumbnail_emoji || '📖'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:0.875rem;font-weight:600;color:var(--ink);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.courses?.title || 'Untitled Course'}</div>
+          <div style="font-size:0.72rem;color:var(--ink-faint)">${e.courses?.category || ''}</div>
+          <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${e.progress_percent || 0}%"></div></div>
+          <div style="font-size:0.7rem;color:var(--teal);margin-top:3px">${e.progress_percent || 0}% complete</div>
+        </div>
+        <a href="/course.html?id=${e.courses?.id}" class="btn btn-primary" style="padding:0.4rem 0.9rem;font-size:0.8rem;flex-shrink:0">Continue →</a>
+      </div>
+    `).join('');
+  }
+
+  async function loadMyCoursesSection() {
+    const { data: enrollments } = await edumeDB.sb
+      .from('enrollments')
+      .select('*, courses(*)')
+      .eq('user_id', currentProfile.id)
+      .order('created_at', { ascending: false });
+
+    const container = document.getElementById('my-courses-list');
+    if (!enrollments?.length) {
+      container.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="es-icon">📚</div><h3>No courses enrolled yet</h3><a href="/index.html#courses" class="btn btn-primary" style="margin-top:1rem">Browse Courses</a></div>`;
+      return;
+    }
+    container.innerHTML = enrollments.map(e => `
+      <div class="card card-sm">
+        <div style="height:120px;background:var(--teal-pale);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;margin-bottom:0.75rem">${e.courses?.thumbnail_emoji || '📖'}</div>
+        <span class="badge badge-teal" style="margin-bottom:0.5rem">${e.courses?.category || 'Course'}</span>
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:0.5rem;line-height:1.3">${e.courses?.title || ''}</div>
+        <div class="progress-bar-track" style="margin-bottom:6px"><div class="progress-bar-fill" style="width:${e.progress_percent||0}%"></div></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.75rem;color:var(--ink-faint)">
+          <span>${e.progress_percent||0}% complete</span>
+          <a href="/course.html?id=${e.courses?.id}" class="btn btn-primary" style="padding:0.35rem 0.8rem;font-size:0.75rem">Open →</a>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function loadLiveClassesSection() {
+    const { data: tickets } = await edumeDB.sb
+      .from('live_class_tickets')
+      .select('*, live_classes(id, title, instructor_name, schedule, zoom_link, teams_link, platform)')
+      .eq('user_id', currentProfile.id)
+      .order('created_at', { ascending: false });
+
+    const container = document.getElementById('live-classes-list');
+    if (!tickets?.length) {
+      container.innerHTML = `<div class="empty-state"><div class="es-icon">🎥</div><h3>No live class tickets yet</h3><p>Buy a monthly ticket to join live Zoom or MS Teams classes.</p><a href="/live-classes.html" class="btn btn-primary" style="margin-top:1rem">Browse Live Classes</a></div>`;
+      return;
+    }
+    container.innerHTML = tickets.map(t => {
+      const lc = t.live_classes;
+      const link = lc?.platform === 'zoom' ? lc?.zoom_link : lc?.teams_link;
+      return `
+        <div class="live-class-row">
+          <div>
+            <div style="font-size:0.9rem;font-weight:600;margin-bottom:3px">${lc?.title || 'Live Class'}</div>
+            <div style="font-size:0.78rem;color:var(--ink-faint)">by ${lc?.instructor_name || ''} · ${lc?.schedule || ''}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="badge ${t.status === 'active' ? 'badge-green' : 'badge-coral'}">${t.status}</span>
+            <span style="font-size:0.75rem;color:var(--ink-faint)">Expires ${formatDate(t.expires_at)}</span>
+            ${link ? `<a href="${link}" target="_blank" class="btn btn-primary" style="padding:0.4rem 0.9rem;font-size:0.8rem">Join Class →</a>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function loadCertificatesSection() {
+    const { data: completions } = await edumeDB.sb
+      .from('enrollments')
+      .select('*, courses(title, thumbnail_emoji)')
+      .eq('user_id', currentProfile.id)
+      .eq('status', 'completed');
+
+    const container = document.getElementById('certs-list');
+    if (!completions?.length) {
+      container.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="es-icon">🎓</div><h3>No certificates yet</h3><p>Complete a course to earn your certificate.</p></div>`;
+      return;
+    }
+    container.innerHTML = completions.map(c => `
+      <div class="card card-sm" style="text-align:center">
+        <div style="font-size:2.5rem;margin-bottom:0.75rem">${c.courses?.thumbnail_emoji || '🎓'}</div>
+        <div style="font-size:0.9rem;font-weight:600;margin-bottom:0.5rem">${c.courses?.title || ''}</div>
+        <div style="font-size:0.75rem;color:var(--ink-faint);margin-bottom:1rem">Completed ${formatDate(c.updated_at)}</div>
+        <button class="btn btn-primary btn-full" style="font-size:0.8rem" onclick="downloadCert('${c.id}')">⬇ Download Certificate</button>
+      </div>
+    `).join('');
+  }
+
+  function downloadCert(enrollmentId) {
+    showToast('Certificate download coming soon!', 'info');
+  }
+
+  async function saveSettings() {
+    const { error } = await edumeDB.sb.from('profiles').update({
+      full_name: document.getElementById('settings-name').value,
+      phone: document.getElementById('settings-phone').value,
+      preferred_lang: document.getElementById('settings-lang').value,
+    }).eq('id', currentProfile.id);
+    if (error) showToast('Failed to save: ' + error.message, 'error');
+    else showToast('Settings saved!', 'success');
+  }
+
+  const sectionLoaders = {
+    'my-courses': loadMyCoursesSection,
+    'live-classes': loadLiveClassesSection,
+    'certificates': loadCertificatesSection,
+  };
+  const loadedSections = new Set(['overview']);
+
+  function showSection(name) {
+    document.querySelectorAll('[id^="section-"]').forEach(el => el.classList.add('section-hidden'));
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    document.getElementById(`section-${name}`)?.classList.remove('section-hidden');
+    event.currentTarget.classList.add('active');
+
+    if (!loadedSections.has(name) && sectionLoaders[name]) {
+      loadedSections.add(name);
+      sectionLoaders[name]();
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

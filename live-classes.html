@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Classes — Edume Learning</title>
+<link rel="stylesheet" href="/css/styles.css">
+<style>
+  .page-content { max-width:1100px; margin:0 auto; padding:2rem; }
+  .filter-bar { background:white; border:1px solid var(--border); border-radius:12px; padding:1rem 1.25rem; display:flex; gap:0.75rem; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap; }
+  .live-card { background:white; border:1px solid var(--border); border-radius:16px; overflow:hidden; transition:all 0.25s; }
+  .live-card:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(0,0,0,0.07); }
+  .live-card-header { background:linear-gradient(135deg,var(--teal-dark),var(--teal)); padding:1.25rem; color:white; position:relative; }
+  .live-card-header h3 { font-size:0.95rem; font-weight:700; margin-bottom:0.25rem; }
+  .live-card-header p { font-size:0.78rem; opacity:0.75; }
+  .platform-badge { position:absolute; top:12px; right:12px; font-size:0.7rem; font-weight:700; padding:4px 10px; border-radius:20px; }
+  .platform-zoom  { background:rgba(45,140,255,0.3); color:#9FD0FF; }
+  .platform-teams { background:rgba(120,80,255,0.3); color:#C5B0FF; }
+  .live-card-body { padding:1.25rem; }
+  .live-card-meta { display:flex; gap:1rem; font-size:0.78rem; color:var(--ink-faint); margin-bottom:0.75rem; flex-wrap:wrap; }
+  .live-card-footer { display:flex; align-items:center; justify-content:space-between; padding-top:0.75rem; border-top:1px solid var(--border); }
+  .ticket-price-tag { font-family:'Playfair Display',serif; font-size:1.2rem; font-weight:700; color:var(--teal); }
+  .ticket-price-tag small { font-size:0.72rem; font-family:'DM Sans'; color:var(--ink-faint); font-weight:400; }
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:1rem; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:white; border-radius:20px; padding:2rem; width:100%; max-width:460px; }
+</style>
+</head>
+<body>
+
+<nav class="app-nav" id="app-nav"></nav>
+
+<div class="page-content">
+  <div style="margin-bottom:2rem">
+    <h1 style="font-family:'Playfair Display',serif;font-size:2rem;font-weight:700;margin-bottom:0.4rem">Live Classes</h1>
+    <p style="color:var(--ink-muted)">Learn live with expert Sri Lankan instructors on Zoom & MS Teams.</p>
+  </div>
+
+  <div class="filter-bar">
+    <input type="text" id="search-input" class="form-input" placeholder="Search classes..." style="max-width:250px" oninput="filterClasses()">
+    <select class="form-select" id="filter-platform" style="max-width:160px" onchange="filterClasses()">
+      <option value="">All Platforms</option>
+      <option value="zoom">Zoom</option>
+      <option value="teams">MS Teams</option>
+    </select>
+    <select class="form-select" id="filter-price" style="max-width:180px" onchange="filterClasses()">
+      <option value="">Any Price</option>
+      <option value="0-1000">Under LKR 1,000</option>
+      <option value="1000-2000">LKR 1,000 – 2,000</option>
+      <option value="2000-99999">Above LKR 2,000</option>
+    </select>
+  </div>
+
+  <div id="classes-grid" class="grid-3"><div class="spinner" style="grid-column:1/-1"></div></div>
+</div>
+
+<!-- BUY TICKET MODAL -->
+<div class="modal-overlay" id="ticket-modal">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.25rem;font-weight:700;margin:0">Buy Monthly Ticket</h3>
+      <button onclick="closeTicketModal()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--ink-faint)">×</button>
+    </div>
+    <div id="ticket-class-info" style="background:var(--teal-pale);border-radius:12px;padding:1rem;margin-bottom:1.25rem"></div>
+    <div style="background:var(--off-white);border-radius:10px;padding:1rem;margin-bottom:1.25rem;font-size:0.85rem">
+      <div style="font-weight:600;margin-bottom:0.5rem">What's included:</div>
+      <div style="display:flex;flex-direction:column;gap:4px;color:var(--ink-muted)">
+        <span>✅ All live sessions this month</span>
+        <span>✅ Recorded replays access</span>
+        <span>✅ Direct chat with instructor</span>
+        <span>✅ Cancel anytime</span>
+      </div>
+    </div>
+    <div id="ticket-error" style="display:none;background:var(--coral-pale);color:var(--coral);font-size:0.82rem;padding:10px 12px;border-radius:8px;margin-bottom:1rem"></div>
+    <button class="btn btn-amber btn-full btn-lg" id="confirm-ticket-btn" onclick="confirmBuyTicket()">
+      🎟️ Confirm — Buy Ticket
+    </button>
+    <p style="font-size:0.72rem;color:var(--ink-faint);text-align:center;margin-top:0.75rem">
+      Secure payment. Ticket activates immediately after purchase.
+    </p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/js/supabase-client.js"></script>
+<script src="/js/ui.js"></script>
+<script>
+  let allClasses = [];
+  let selectedClass = null;
+
+  async function init() {
+    renderNav('live-classes');
+    const { data } = await edumeDB.sb
+      .from('live_classes')
+      .select('*')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+
+    allClasses = data || [];
+    renderClasses(allClasses);
+  }
+
+  function renderClasses(classes) {
+    const grid = document.getElementById('classes-grid');
+    if (!classes.length) {
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--ink-faint)">No live classes found. Check back soon!</div>`;
+      return;
+    }
+    grid.innerHTML = classes.map(c => `
+      <div class="live-card">
+        <div class="live-card-header">
+          <span class="platform-badge ${c.platform === 'zoom' ? 'platform-zoom' : 'platform-teams'}">
+            ${c.platform === 'zoom' ? '📹 Zoom' : '💻 MS Teams'}
+          </span>
+          <h3>${c.title}</h3>
+          <p>by ${c.instructor_name}</p>
+        </div>
+        <div class="live-card-body">
+          <p style="font-size:0.83rem;color:var(--ink-muted);margin-bottom:0.75rem;line-height:1.5">${c.description || ''}</p>
+          <div class="live-card-meta">
+            <span>🗓 ${c.schedule || 'Schedule TBA'}</span>
+            <span>👥 Max ${c.max_students || '—'} students</span>
+          </div>
+          <div class="live-card-footer">
+            <div>
+              <div class="ticket-price-tag">${formatLKR(c.ticket_price)} <small>/ month</small></div>
+              <div style="font-size:0.7rem;color:var(--ink-faint)">All sessions + recordings</div>
+            </div>
+            <button class="btn btn-primary" onclick="openTicketModal(${JSON.stringify(c).replace(/"/g,'&quot;')})">🎟 Buy Ticket</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function filterClasses() {
+    const q        = document.getElementById('search-input').value.toLowerCase();
+    const platform = document.getElementById('filter-platform').value;
+    const priceRange = document.getElementById('filter-price').value;
+
+    let filtered = allClasses.filter(c => {
+      const matchQ  = !q || c.title.toLowerCase().includes(q) || c.instructor_name?.toLowerCase().includes(q);
+      const matchP  = !platform || c.platform === platform;
+      let matchPrice = true;
+      if (priceRange) {
+        const [min, max] = priceRange.split('-').map(Number);
+        matchPrice = c.ticket_price >= min && c.ticket_price <= max;
+      }
+      return matchQ && matchP && matchPrice;
+    });
+    renderClasses(filtered);
+  }
+
+  function openTicketModal(liveClass) {
+    selectedClass = liveClass;
+    document.getElementById('ticket-class-info').innerHTML = `
+      <div style="font-weight:600;font-size:0.95rem;color:var(--teal-dark);margin-bottom:4px">${liveClass.title}</div>
+      <div style="font-size:0.78rem;color:var(--teal)">by ${liveClass.instructor_name} · ${liveClass.schedule || ''}</div>
+      <div style="font-size:1.2rem;font-weight:700;color:var(--teal-dark);margin-top:8px;font-family:'Playfair Display',serif">
+        ${formatLKR(liveClass.ticket_price)} / month
+      </div>
+    `;
+    document.getElementById('ticket-modal').classList.add('open');
+    document.getElementById('ticket-error').style.display = 'none';
+  }
+
+  function closeTicketModal() {
+    document.getElementById('ticket-modal').classList.remove('open');
+    selectedClass = null;
+  }
+
+  async function confirmBuyTicket() {
+    const user = await edumeDB.getCurrentUser();
+    if (!user) {
+      window.location.href = '/login.html'; return;
+    }
+    const btn   = document.getElementById('confirm-ticket-btn');
+    const errEl = document.getElementById('ticket-error');
+    errEl.style.display = 'none';
+
+    setLoading(btn, true, '🎟️ Confirm — Buy Ticket');
+
+    // Check if already subscribed
+    const { data: existing } = await edumeDB.sb
+      .from('live_class_tickets')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('live_class_id', selectedClass.id)
+      .eq('status', 'active')
+      .single();
+
+    if (existing) {
+      setLoading(btn, false, '🎟️ Confirm — Buy Ticket');
+      errEl.textContent = 'You already have an active ticket for this class.';
+      errEl.style.display = 'block'; return;
+    }
+
+    // Create ticket (expires 30 days from now)
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    const { error } = await edumeDB.sb.from('live_class_tickets').insert({
+      user_id: user.id,
+      live_class_id: selectedClass.id,
+      status: 'active',
+      expires_at: expiresAt.toISOString(),
+      amount_paid: selectedClass.ticket_price,
+    });
+
+    setLoading(btn, false, '🎟️ Confirm — Buy Ticket');
+
+    if (error) {
+      errEl.textContent = error.message; errEl.style.display = 'block';
+    } else {
+      closeTicketModal();
+      showToast('🎉 Ticket purchased! Find it in your dashboard.', 'success', 5000);
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

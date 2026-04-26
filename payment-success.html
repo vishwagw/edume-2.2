@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment Successful — Edume Learning</title>
+<link rel="stylesheet" href="/css/styles.css">
+<style>
+  body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:linear-gradient(135deg,#F0FBF6 0%,#FFF9F0 100%); }
+  .success-card { background:white; border-radius:24px; border:1px solid var(--border); padding:3rem 2.5rem; max-width:460px; width:100%; text-align:center; box-shadow:0 12px 48px rgba(0,0,0,.07); }
+  .success-icon { width:80px; height:80px; border-radius:50%; background:var(--teal-pale); display:flex; align-items:center; justify-content:center; font-size:2.5rem; margin:0 auto 1.5rem; animation:popIn .5s ease; }
+  @keyframes popIn { 0%{transform:scale(.5);opacity:0} 80%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+  .success-title { font-family:'Playfair Display',serif; font-size:1.75rem; font-weight:700; color:var(--ink); margin-bottom:.5rem; }
+  .success-sub { color:var(--ink-muted); font-size:.95rem; margin-bottom:2rem; line-height:1.6; }
+  .order-ref { background:var(--off-white); border-radius:10px; padding:.9rem 1.25rem; font-size:.8rem; color:var(--ink-faint); margin-bottom:1.5rem; }
+  .order-ref span { font-weight:700; color:var(--ink); font-size:.85rem; }
+  .actions { display:flex; flex-direction:column; gap:.75rem; }
+</style>
+</head>
+<body>
+
+<div class="success-card">
+  <div class="success-icon">🎉</div>
+  <div class="success-title">Payment Successful!</div>
+  <p class="success-sub" id="success-msg">Your enrollment is confirmed. You can now access your course immediately.</p>
+
+  <div class="order-ref">
+    Order reference: <span id="order-ref">—</span>
+  </div>
+
+  <div class="actions" id="action-btns">
+    <div class="spinner"></div>
+  </div>
+
+  <p style="font-size:.72rem;color:var(--ink-faint);margin-top:1.5rem">
+    A receipt has been sent to your email address. If you have any issues, contact <a href="mailto:support@edumelearning.lk" style="color:var(--teal)">support@edumelearning.lk</a>
+  </p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/js/supabase-client.js"></script>
+<script src="/js/ui.js"></script>
+<script>
+async function init() {
+  const params  = new URLSearchParams(window.location.search);
+  const orderId = params.get('order') || '—';
+  const type    = params.get('type');
+  const id      = params.get('id');
+
+  document.getElementById('order-ref').textContent = orderId;
+
+  const user = await edumeDB.getCurrentUser();
+
+  if (type === 'course' && id && user) {
+    document.getElementById('success-msg').textContent = 'Your enrollment is confirmed. You can start learning right away!';
+    // Ensure enrollment exists (notify URL will also do this, but handle race condition)
+    const { data: existing } = await edumeDB.sb.from('enrollments').select('id').eq('user_id', user.id).eq('course_id', id).single();
+    if (!existing) {
+      await edumeDB.sb.from('enrollments').insert({ user_id: user.id, course_id: id, amount_paid: 0, status: 'active' });
+    }
+    document.getElementById('action-btns').innerHTML = `
+      <a href="/course-player.html?id=${id}" class="btn btn-primary btn-full btn-lg">🎓 Start Learning Now</a>
+      <a href="/student-dashboard.html" class="btn btn-secondary btn-full">Go to Dashboard</a>`;
+  } else if (type === 'ticket' && id && user) {
+    document.getElementById('success-msg').textContent = 'Your monthly ticket is active. Join the next live session using the link in your dashboard.';
+    document.getElementById('action-btns').innerHTML = `
+      <a href="/student-dashboard.html" class="btn btn-primary btn-full btn-lg">📊 Go to Dashboard</a>
+      <a href="/live-classes.html" class="btn btn-secondary btn-full">Browse More Live Classes</a>`;
+  } else {
+    document.getElementById('action-btns').innerHTML = `
+      <a href="/student-dashboard.html" class="btn btn-primary btn-full btn-lg">📊 Go to Dashboard</a>
+      <a href="/courses.html" class="btn btn-secondary btn-full">Browse Courses</a>`;
+  }
+
+  // Update payment record to completed
+  if (orderId !== '—') {
+    await edumeDB.sb.from('payments').update({ status: 'completed' }).eq('user_id', user?.id).like('reference_id', id || '');
+  }
+}
+
+init();
+</script>
+</body>
+</html>
