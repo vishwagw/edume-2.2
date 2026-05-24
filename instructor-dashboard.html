@@ -38,15 +38,15 @@
   <aside class="sidebar">
     <div class="sidebar-section">
       <div class="sidebar-label">Studio</div>
-      <button class="sidebar-link active" onclick="showSection('overview')">📊 Overview</button>
+      <button class="sidebar-link active" onclick="showSection('overview', this)">📊 Overview</button>
       <button class="sidebar-link" onclick="showSection('courses', this)">📚 My Courses</button>
-      <button class="sidebar-link" onclick="showSection('live')">🎥 Live Classes</button>
-      <button class="sidebar-link" onclick="showSection('students')">👥 My Students</button>
-      <button class="sidebar-link" onclick="showSection('earnings')">💰 Earnings</button>
+      <button class="sidebar-link" onclick="showSection('live', this)">🎥 Live Classes</button>
+      <button class="sidebar-link" onclick="showSection('students', this)">👥 My Students</button>
+      <button class="sidebar-link" onclick="showSection('earnings', this)">💰 Earnings</button>
     </div>
     <div class="sidebar-section">
       <div class="sidebar-label">Account</div>
-      <button class="sidebar-link" onclick="showSection('settings')">⚙️ Settings</button>
+      <button class="sidebar-link" onclick="showSection('settings', this)">⚙️ Settings</button>
       <button class="sidebar-link" onclick="signOut()" style="color:var(--red)">← Sign Out</button>
     </div>
   </aside>
