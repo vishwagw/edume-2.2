@@ -265,13 +265,24 @@
     document.getElementById('stat-rating').textContent   = '4.8 ★';
 
     // Earnings (mock for demo — replace with your real payments table)
-    document.getElementById('monthly-earnings').textContent = 'LKR 82,400';
-    document.getElementById('earn-courses').textContent  = 'LKR 54,200';
-    document.getElementById('earn-tickets').textContent  = 'LKR 28,200';
+    
 
     loadCoursesList('overview-courses', 3);
   }
+// Real earnings from payments table
+const { data: payments } = await edumeDB.sb
+  .from('payments')
+  .select('amount, type')
+  .eq('instructor_id', id)
+  .eq('status', 'completed');
 
+const courseEarnings  = payments?.filter(p => p.type === 'course').reduce((s, p) => s + (p.amount || 0), 0) ?? 0;
+const ticketEarnings  = payments?.filter(p => p.type === 'ticket').reduce((s, p) => s + (p.amount || 0), 0) ?? 0;
+const totalEarnings   = courseEarnings + ticketEarnings;
+
+document.getElementById('monthly-earnings').textContent = formatLKR(totalEarnings);
+document.getElementById('earn-courses').textContent     = formatLKR(courseEarnings);
+document.getElementById('earn-tickets').textContent     = formatLKR(ticketEarnings);
   async function loadCoursesList(containerId = 'courses-list', limit = 50) {
     const { data: courses } = await edumeDB.sb
       .from('courses').select('*')
