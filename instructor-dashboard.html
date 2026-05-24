@@ -532,14 +532,12 @@ document.getElementById('earn-tickets').textContent     = formatLKR(ticketEarnin
   };
   const loadedSections = new Set(['overview']);
 
-  function showSection(name) {
+  function showSection(name, btn) {
     document.querySelectorAll('[id^="section-"]').forEach(el => el.classList.add('section-hidden'));
     document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
     document.getElementById(`section-${name}`)?.classList.remove('section-hidden');
-    event.currentTarget.classList.add('active');
-    if (!loadedSections.has(name) && sectionLoaders[name]) {
-      loadedSections.add(name);
-      sectionLoaders[name]();
+    if (btn) btn.classList.add('active');
+    
     }
   }
 
