@@ -250,19 +250,39 @@
   async function loadOverview() {
     const id = currentProfile.id;
 
-    const [{ count: courseCount }, { count: liveCount }] = await Promise.all([
-      edumeDB.sb.from('courses').select('*', {count:'exact',head:true}).eq('instructor_id', id),
-      edumeDB.sb.from('live_classes').select('*', {count:'exact',head:true}).eq('instructor_id', id),
-    ]);
-    const { data: enrollData } = await edumeDB.sb
-      .from('enrollments').select('courses!inner(instructor_id)')
-      .eq('courses.instructor_id', id);
-    const studentCount = enrollData?.length || 0;
+    try {
+      const [{ count: courseCount }, { count: liveCount }] = await Promise.all([
+        edumeDB.sb.from('courses').select('*', {count:'exact',head:true}).eq('instructor_id', id),
+        edumeDB.sb.from('live_classes').select('*', {count:'exact',head:true}).eq('instructor_id', id),
+      ]);
+      const { data: enrollData } = await edumeDB.sb
+        .from('enrollments').select('courses!inner(instructor_id)')
+        .eq('courses.instructor_id', id);
+      const studentCount = enrollData?.length || 0;
 
-    document.getElementById('stat-courses').textContent  = courseCount ?? 0;
-    document.getElementById('stat-students').textContent = studentCount;
-    document.getElementById('stat-live').textContent     = liveCount ?? 0;
-    document.getElementById('stat-rating').textContent   = '4.8 ★';
+      document.getElementById('stat-courses').textContent  = courseCount ?? 0;
+      document.getElementById('stat-students').textContent = studentCount;
+      document.getElementById('stat-live').textContent     = liveCount ?? 0;
+      document.getElementById('stat-rating').textContent   = '— ★';
+
+      // Earnings from payments table (keyed by user_id = instructor's user id)
+      const { data: payments } = await edumeDB.sb
+        .from('payments')
+        .select('amount')
+        .eq('user_id', id)
+        .eq('status', 'completed');
+
+      const total = payments?.reduce((s, p) => s + (p.amount || 0), 0) ?? 0;
+      document.getElementById('monthly-earnings').textContent = formatLKR(total);
+      document.getElementById('earn-courses').textContent  = formatLKR(total);
+      document.getElementById('earn-tickets').textContent  = formatLKR(0);
+
+    } catch (err) {
+      console.error('Overview load error:', err);
+    }
+
+    loadCoursesList('overview-courses', 3);
+  }
 
     // Earnings (mock for demo — replace with your real payments table)
     
