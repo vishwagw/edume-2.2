@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign Up — Edume Learning</title>
+<link rel="stylesheet" href="/css/styles.css">
+<style>
+  body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:linear-gradient(135deg,#F0FBF6 0%,#FFF9F0 100%); padding:2rem 1rem; }
+  .auth-card { background:white; border-radius:20px; border:1px solid var(--border); padding:2.5rem; width:100%; max-width:460px; box-shadow:0 8px 40px rgba(0,0,0,0.07); }
+  .auth-logo { display:flex; align-items:center; gap:10px; font-family:'Playfair Display',serif; font-size:1.4rem; font-weight:800; color:var(--teal); text-decoration:none; margin-bottom:2rem; justify-content:center; }
+  .auth-logo-icon { width:36px; height:36px; border-radius:9px; background:var(--teal); color:white; display:flex; align-items:center; justify-content:center; font-size:1rem; font-weight:800; }
+  .auth-title { font-family:'Playfair Display',serif; font-size:1.5rem; font-weight:700; color:var(--ink); margin-bottom:0.4rem; }
+  .auth-sub { font-size:0.875rem; color:var(--ink-muted); margin-bottom:1.75rem; }
+  .role-selector { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-bottom:1.5rem; }
+  .role-card { border:2px solid var(--border); border-radius:12px; padding:1rem; cursor:pointer; text-align:center; transition:all 0.2s; background:white; }
+  .role-card:hover { border-color:var(--teal-light); }
+  .role-card.selected { border-color:var(--teal); background:var(--teal-pale); }
+  .role-icon { font-size:1.5rem; margin-bottom:0.3rem; }
+  .role-name { font-size:0.875rem; font-weight:600; color:var(--ink); }
+  .role-desc { font-size:0.72rem; color:var(--ink-faint); margin-top:2px; }
+  .auth-footer { text-align:center; font-size:0.83rem; color:var(--ink-muted); margin-top:1.5rem; }
+  .auth-footer a { color:var(--teal); text-decoration:none; font-weight:600; }
+  .terms { font-size:0.72rem; color:var(--ink-faint); text-align:center; margin-top:1rem; }
+  .terms a { color:var(--teal); text-decoration:none; }
+</style>
+</head>
+<body>
+
+<div class="auth-card">
+  <a href="/index.html" class="auth-logo">
+    <div class="auth-logo-icon">E</div>
+    Edume Learning
+  </a>
+
+  <div class="auth-title">Create your account</div>
+  <p class="auth-sub">Join 25,000+ Sri Lankan learners and educators.</p>
+
+  <!-- Role selector -->
+  <div class="role-selector">
+    <div class="role-card selected" id="role-student" onclick="selectRole('student')">
+      <div class="role-icon">🎓</div>
+      <div class="role-name">I'm a Student</div>
+      <div class="role-desc">Learn & grow your skills</div>
+    </div>
+    <div class="role-card" id="role-instructor" onclick="selectRole('instructor')">
+      <div class="role-icon">🏫</div>
+      <div class="role-name">I'm a Teacher</div>
+      <div class="role-desc">Teach & earn income</div>
+    </div>
+  </div>
+  <input type="hidden" id="selected-role" value="student">
+
+
+  <div id="error-msg" style="display:none;background:var(--coral-pale);color:var(--coral);font-size:0.82rem;padding:10px 12px;border-radius:8px;margin-bottom:1rem"></div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
+    <div class="form-group">
+      <label class="form-label">First name</label>
+      <input type="text" id="fname" class="form-input" placeholder="Kasun">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Last name</label>
+      <input type="text" id="lname" class="form-input" placeholder="Perera">
+    </div>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Email address</label>
+    <input type="email" id="email" class="form-input" placeholder="you@example.com">
+  </div>
+  <div class="form-group">
+    <label class="form-label">Password</label>
+    <input type="password" id="password" class="form-input" placeholder="At least 8 characters">
+  </div>
+
+  <button class="btn btn-primary btn-full btn-lg" id="signup-btn" onclick="signUp()">
+    Create Account — It's Free
+  </button>
+
+  <p class="terms">By signing up, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
+
+  <div class="auth-footer">
+    Already have an account? <a href="/login.html">Log in</a>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/js/supabase-client.js"></script>
+<script src="/js/ui.js"></script>
+<script>
+  edumeDB.getCurrentUser().then(user => {
+    if (user) window.location.href = '/student-dashboard.html';
+  });
+
+  function selectRole(role) {
+    document.getElementById('selected-role').value = role;
+    document.getElementById('role-student').classList.toggle('selected', role === 'student');
+    document.getElementById('role-instructor').classList.toggle('selected', role === 'instructor');
+  }
+
+  async function signUp() {
+    const fname    = document.getElementById('fname').value.trim();
+    const lname    = document.getElementById('lname').value.trim();
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const role     = document.getElementById('selected-role').value;
+    const btn      = document.getElementById('signup-btn');
+    const errorEl  = document.getElementById('error-msg');
+    errorEl.style.display = 'none';
+
+    if (!fname || !lname || !email || !password) {
+      errorEl.textContent = 'Please fill in all fields.';
+      errorEl.style.display = 'block'; return;
+    }
+    if (password.length < 8) {
+      errorEl.textContent = 'Password must be at least 8 characters.';
+      errorEl.style.display = 'block'; return;
+    }
+
+    setLoading(btn, true, 'Create Account — It\'s Free');
+
+    const { data, error } = await edumeDB.sb.auth.signUp({
+      email, password,
+      options: {
+        data: { full_name: `${fname} ${lname}`, role }
+      }
+    });
+
+    setLoading(btn, false, 'Create Account — It\'s Free');
+
+    if (error) {
+      errorEl.textContent = error.message;
+      errorEl.style.display = 'block';
+    } else {
+      // Profile is created by Supabase trigger (see schema.sql)
+      showToast('Account created! Check your email to verify.', 'success', 6000);
+      setTimeout(() => {
+        window.location.href = role === 'instructor'
+          ? '/instructor-dashboard.html'
+          : '/student-dashboard.html';
+      }, 2000);
+    }
+  }
+</script>
+</body>
+</html>
